@@ -25,6 +25,9 @@ public class JobConfig {
     public Job deliverPackageJob() {
         return new JobBuilder("deliverPackageJob", jobRepository)
                 .start(packageItemStep())
+                .next(driveToAddressStep())
+                .next(givePackageToCustomerStep())
+                //.incrementer(new RunIdIncrementer())
                 .build();
     }
 
@@ -32,7 +35,35 @@ public class JobConfig {
     public Step packageItemStep() {
         return new StepBuilder("packageItemStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
-                    System.out.println("Packaging items...");
+                    System.out.println("The item has been packaged.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step driveToAddressStep() {
+
+        boolean GOT_LOST = false; // Simulating a condition where the driver might get lost
+
+        return new StepBuilder("driveToAddressStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+
+                    if (GOT_LOST) {
+                        throw new RuntimeException("Got lost driving to the address.");
+                    }
+
+                    System.out.println("Successfully arrived at the address.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step givePackageToCustomerStep() {
+        return new StepBuilder("givePackageToCustomerStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Given the package to the customer.");
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
                 .build();
