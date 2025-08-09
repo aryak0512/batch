@@ -26,7 +26,11 @@ public class JobConfig {
         return new JobBuilder("deliverPackageJob", jobRepository)
                 .start(packageItemStep())
                 .next(driveToAddressStep())
-                .next(givePackageToCustomerStep())
+                .on("FAILED").to(storePackageStep())
+                .from(driveToAddressStep())
+                .on("*")
+                .to(givePackageToCustomerStep())
+                .end()
                 //.incrementer(new RunIdIncrementer())
                 .build();
     }
@@ -64,6 +68,16 @@ public class JobConfig {
         return new StepBuilder("givePackageToCustomerStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     System.out.println("Given the package to the customer.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step storePackageStep() {
+        return new StepBuilder("storePackageStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Storing the package while customer address is located.");
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
                 .build();
