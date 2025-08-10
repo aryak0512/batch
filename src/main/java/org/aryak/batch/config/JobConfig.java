@@ -1,5 +1,6 @@
 package org.aryak.batch.config;
 
+import org.aryak.batch.listeners.FlowerListener;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -30,6 +31,16 @@ public class JobConfig {
     @Bean
     public JobExecutionDecider correctOrderDecider() {
         return new CorrectOrderDecider();
+    }
+
+    @Bean
+    public Job prepareFlowersJob() {
+        return new JobBuilder("prepareFlowersJob", jobRepository)
+                .start(gatherFlowersStep())
+                    .on("TRIM_REQUIRED").to(removeThornsStep()).next(arrangeFlowersStep())
+                .from(gatherFlowersStep()).on("NO_TRIM_REQUIRED").to(arrangeFlowersStep())
+                .end()
+                .build();
     }
 
     @Bean
@@ -122,6 +133,37 @@ public class JobConfig {
         return new StepBuilder("refundStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     System.out.println("Processing a refund.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step gatherFlowersStep() {
+        return new StepBuilder("gatherFlowersStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Preparing flowers.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .listener(new FlowerListener())
+                .build();
+    }
+
+    @Bean
+    public Step arrangeFlowersStep() {
+        return new StepBuilder("arrangeFlowersStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Arranging flowers for order.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step removeThornsStep() {
+        return new StepBuilder("removeThornsStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Removing thorns from roses.");
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
                 .build();
