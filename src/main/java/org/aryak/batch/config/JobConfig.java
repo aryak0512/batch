@@ -37,7 +37,7 @@ public class JobConfig {
         return new JobBuilder("deliverPackageJob", jobRepository)
                 .start(packageItemStep())
                 .next(driveToAddressStep())
-                    .on("FAILED").to(storePackageStep())
+                    .on("FAILED").stop()
                 .from(driveToAddressStep())
                     .on("*").to(decider())
                         .on("PRESENT").to(givePackageToCustomerStep())
