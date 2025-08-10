@@ -3,6 +3,7 @@ package org.aryak.batch.config;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.job.flow.JobExecutionDecider;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.repeat.RepeatStatus;
@@ -22,14 +23,21 @@ public class JobConfig {
     }
 
     @Bean
+    public JobExecutionDecider decider() {
+        return new DeliveryDecider();
+    }
+
+    @Bean
     public Job deliverPackageJob() {
         return new JobBuilder("deliverPackageJob", jobRepository)
                 .start(packageItemStep())
                 .next(driveToAddressStep())
                 .on("FAILED").to(storePackageStep())
                 .from(driveToAddressStep())
-                .on("*")
-                .to(givePackageToCustomerStep())
+                .on("*").to(decider())
+                .on("PRESENT").to(givePackageToCustomerStep())
+                .from(decider())
+                .on("NOT_PRESENT").to(leaveAtDoorStep())
                 .end()
                 //.incrementer(new RunIdIncrementer())
                 .build();
@@ -78,6 +86,16 @@ public class JobConfig {
         return new StepBuilder("storePackageStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     System.out.println("Storing the package while customer address is located.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step leaveAtDoorStep() {
+        return new StepBuilder("leaveAtDoorStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Leaving the package at the door.");
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
                 .build();
