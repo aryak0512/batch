@@ -3,8 +3,11 @@ package org.aryak.batch.config;
 import org.aryak.batch.listeners.FlowerListener;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.job.builder.FlowBuilder;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.job.flow.Flow;
 import org.springframework.batch.core.job.flow.JobExecutionDecider;
+import org.springframework.batch.core.job.flow.support.SimpleFlow;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.repeat.RepeatStatus;
@@ -23,6 +26,21 @@ public class JobConfig {
         this.platformTransactionManager = platformTransactionManager;
     }
 
+    // copy-pasted common code from delivery and plugged into flower job
+    @Bean
+    public Flow deliveryFlow(){
+        return new FlowBuilder<SimpleFlow>("deliveryFlow")
+                .next(driveToAddressStep())
+                .on("FAILED").stop()
+                .from(driveToAddressStep())
+                    .on("*").to(decider())
+                        .on("PRESENT").to(givePackageToCustomerStep())
+                            .next(correctOrderDecider()).on("CORRECT").to(thankCustomerStep())
+                            .from(correctOrderDecider()).on("INCORRECT").to(refundStep())
+                        .from(decider()).on("NOT_PRESENT").to(leaveAtDoorStep())
+                .build();
+    }
+
     @Bean
     public JobExecutionDecider decider() {
         return new DeliveryDecider();
@@ -39,6 +57,7 @@ public class JobConfig {
                 .start(gatherFlowersStep())
                     .on("TRIM_REQUIRED").to(removeThornsStep()).next(arrangeFlowersStep())
                 .from(gatherFlowersStep()).on("NO_TRIM_REQUIRED").to(arrangeFlowersStep())
+                .next(deliveryFlow())
                 .end()
                 .build();
     }
@@ -47,17 +66,8 @@ public class JobConfig {
     public Job deliverPackageJob() {
         return new JobBuilder("deliverPackageJob", jobRepository)
                 .start(packageItemStep())
-                .next(driveToAddressStep())
-                    .on("FAILED").stop()
-                .from(driveToAddressStep())
-                    .on("*").to(decider())
-                        .on("PRESENT").to(givePackageToCustomerStep())
-                            .next(correctOrderDecider()).on("CORRECT").to(thankCustomerStep())
-                            .from(correctOrderDecider()).on("INCORRECT").to(refundStep())
-                        .from(decider()).on("NOT_PRESENT").to(leaveAtDoorStep())
-                .end()
-                //.incrementer(new RunIdIncrementer())
-                .build();
+                .on("*").to(deliveryFlow())
+                .end().build();
     }
 
     @Bean
