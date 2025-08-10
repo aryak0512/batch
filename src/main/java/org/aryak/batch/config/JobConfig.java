@@ -28,16 +28,22 @@ public class JobConfig {
     }
 
     @Bean
+    public JobExecutionDecider correctOrderDecider() {
+        return new CorrectOrderDecider();
+    }
+
+    @Bean
     public Job deliverPackageJob() {
         return new JobBuilder("deliverPackageJob", jobRepository)
                 .start(packageItemStep())
                 .next(driveToAddressStep())
-                .on("FAILED").to(storePackageStep())
+                    .on("FAILED").to(storePackageStep())
                 .from(driveToAddressStep())
-                .on("*").to(decider())
-                .on("PRESENT").to(givePackageToCustomerStep())
-                .from(decider())
-                .on("NOT_PRESENT").to(leaveAtDoorStep())
+                    .on("*").to(decider())
+                        .on("PRESENT").to(givePackageToCustomerStep())
+                            .next(correctOrderDecider()).on("CORRECT").to(thankCustomerStep())
+                            .from(correctOrderDecider()).on("INCORRECT").to(refundStep())
+                        .from(decider()).on("NOT_PRESENT").to(leaveAtDoorStep())
                 .end()
                 //.incrementer(new RunIdIncrementer())
                 .build();
@@ -96,6 +102,26 @@ public class JobConfig {
         return new StepBuilder("leaveAtDoorStep", jobRepository)
                 .tasklet((contribution, chunkContext) -> {
                     System.out.println("Leaving the package at the door.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step thankCustomerStep() {
+        return new StepBuilder("thankCustomerStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Thanking the customer.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step refundStep() {
+        return new StepBuilder("refundStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Processing a refund.");
                     return RepeatStatus.FINISHED;
                 }, platformTransactionManager)
                 .build();
