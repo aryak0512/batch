@@ -11,10 +11,12 @@ public class CorrectOrderDecider implements JobExecutionDecider {
     public FlowExecutionStatus decide(JobExecution jobExecution, StepExecution stepExecution) {
 
         // an order is correct 70% of the time
-        if (Math.random() < 0.7) {
-            return new FlowExecutionStatus("CORRECT");
-        }
-        return new FlowExecutionStatus("INCORRECT");
+        return new FlowExecutionStatus("CORRECT");
+
+//        if (Math.random() < 0.7) {
+//            return new FlowExecutionStatus("CORRECT");
+//        }
+//        return new FlowExecutionStatus("INCORRECT");
 
     }
 }

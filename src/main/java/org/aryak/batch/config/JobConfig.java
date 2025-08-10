@@ -51,6 +51,14 @@ public class JobConfig {
         return new CorrectOrderDecider();
     }
 
+    // jobs
+    @Bean
+    public Job billingJob() {
+        return new JobBuilder("billingJob", jobRepository)
+                .start(sendInvoiceStep())
+                .build();
+    }
+
     @Bean
     public Job prepareFlowersJob() {
         return new JobBuilder("prepareFlowersJob", jobRepository)
@@ -58,6 +66,7 @@ public class JobConfig {
                     .on("TRIM_REQUIRED").to(removeThornsStep()).next(arrangeFlowersStep())
                 .from(gatherFlowersStep()).on("NO_TRIM_REQUIRED").to(arrangeFlowersStep())
                 .next(deliveryFlow())
+                .next(nestedBillingJobStep())
                 .end()
                 .build();
     }
@@ -67,8 +76,12 @@ public class JobConfig {
         return new JobBuilder("deliverPackageJob", jobRepository)
                 .start(packageItemStep())
                 .on("*").to(deliveryFlow())
-                .end().build();
+                .next(nestedBillingJobStep())
+                .end()
+                .build();
     }
+
+    // steps
 
     @Bean
     public Step packageItemStep() {
@@ -178,4 +191,24 @@ public class JobConfig {
                 }, platformTransactionManager)
                 .build();
     }
+
+    @Bean
+    public Step sendInvoiceStep() {
+        return new StepBuilder("sendInvoiceStep", jobRepository)
+                .tasklet((contribution, chunkContext) -> {
+                    System.out.println("Sending invoice to customer.");
+                    return RepeatStatus.FINISHED;
+                }, platformTransactionManager)
+                .build();
+    }
+
+    // connecting one job to another
+    @Bean
+    public Step nestedBillingJobStep() {
+        return new StepBuilder("nestedBillingJobStep", jobRepository)
+                .job(billingJob())
+                .build();
+    }
+
+
 }
