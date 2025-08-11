@@ -105,6 +105,7 @@ public class DatabaseReading {
                 .name("jdbcCursorItemReader")
                 .pageSize(10) // should be same as chunk size
                 .queryProvider(queryProvider())
+                .dataSource(datasource)
                 .build();
     }
 
@@ -125,7 +126,7 @@ public class DatabaseReading {
                 .build();
     }
 
-    @Bean
+    //@Bean
     public ItemProcessor<Order, Order> validationProcessor() {
         ValidatingItemProcessor<Order> validatingItemProcessor = new ValidatingItemProcessor<>();
         validatingItemProcessor.setFilter(true);

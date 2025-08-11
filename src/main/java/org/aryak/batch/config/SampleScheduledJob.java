@@ -43,7 +43,7 @@ public class SampleScheduledJob {
     }
 
 
-    @Bean
+    //@Bean
     public Trigger myJobTrigger() {
         return TriggerBuilder.newTrigger()
                 //.forJob(myJobDetail())
