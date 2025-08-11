@@ -1,17 +1,22 @@
 package org.aryak.batch.database;
 
 
+import org.aryak.batch.exceptions.OrderProcessingException;
 import org.aryak.batch.file.Order;
+import org.aryak.batch.model.TrackedOrder;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
 import org.springframework.batch.item.database.builder.JdbcPagingItemReaderBuilder;
 import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
+import org.springframework.batch.item.support.builder.CompositeItemProcessorBuilder;
+import org.springframework.batch.item.validator.ValidatingItemProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -66,7 +71,7 @@ public class DatabaseReading {
     }
 
     @Bean
-    public Job dbJob(){
+    public Job dbJob() {
         return new JobBuilder("dbJob", jobRepository)
                 .start(chunkedStep())
                 .build();
@@ -79,6 +84,8 @@ public class DatabaseReading {
                 .<Order, Order>chunk(10, platformTransactionManager)
                 .reader(itemReader())
                 .writer(items -> items.forEach(System.out::println))
+                .faultTolerant()
+                .skip(OrderProcessingException.class)
                 .build();
     }
 
@@ -101,5 +108,19 @@ public class DatabaseReading {
         factory.setFromClause("FROM orders");
         factory.setSortKey("order_id");
         return factory.getObject();
+    }
+
+    @Bean
+    public ItemProcessor<Order, TrackedOrder> compositeItemProcessor() {
+        return new CompositeItemProcessorBuilder<Order, TrackedOrder>()
+                .delegates(validationProcessor())
+                .build();
+    }
+
+    @Bean
+    public ItemProcessor<Order, Order> validationProcessor() {
+        ValidatingItemProcessor<Order> validatingItemProcessor = new ValidatingItemProcessor<>();
+        validatingItemProcessor.setFilter(true);
+        return validatingItemProcessor;
     }
 }
