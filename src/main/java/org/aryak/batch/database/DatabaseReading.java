@@ -1,8 +1,11 @@
 package org.aryak.batch.database;
 
 
+import org.aryak.batch.exceptions.ExternalApiUnreachableException;
 import org.aryak.batch.exceptions.OrderProcessingException;
 import org.aryak.batch.file.Order;
+import org.aryak.batch.listeners.CustomRetryListener;
+import org.aryak.batch.listeners.CustomSkipListener;
 import org.aryak.batch.model.TrackedOrder;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -86,6 +89,11 @@ public class DatabaseReading {
                 .writer(items -> items.forEach(System.out::println))
                 .faultTolerant()
                 .skip(OrderProcessingException.class)
+                .skipLimit(5)
+                .retry(ExternalApiUnreachableException.class) // step level configuration
+                .retryLimit(3) // this is a item level configuration - the line will be retried 3 times
+                .listener(new CustomRetryListener())
+                .listener(new CustomSkipListener())
                 .build();
     }
 
