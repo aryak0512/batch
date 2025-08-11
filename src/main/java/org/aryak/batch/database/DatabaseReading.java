@@ -8,7 +8,10 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.database.PagingQueryProvider;
 import org.springframework.batch.item.database.builder.JdbcCursorItemReaderBuilder;
+import org.springframework.batch.item.database.builder.JdbcPagingItemReaderBuilder;
+import org.springframework.batch.item.database.support.SqlPagingQueryProviderFactoryBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -77,5 +80,26 @@ public class DatabaseReading {
                 .reader(itemReader())
                 .writer(items -> items.forEach(System.out::println))
                 .build();
+    }
+
+    // JDBC Paging Item Reader : thread-safe, suitable for multi-threaded processing
+    @Bean
+    public ItemReader<Order> multithreadedPagingItemReader() throws Exception {
+
+        return new JdbcPagingItemReaderBuilder<Order>()
+                .name("jdbcCursorItemReader")
+                .pageSize(10) // should be same as chunk size
+                .queryProvider(queryProvider())
+                .build();
+    }
+
+    @Bean
+    public PagingQueryProvider queryProvider() throws Exception {
+        SqlPagingQueryProviderFactoryBean factory = new SqlPagingQueryProviderFactoryBean();
+        factory.setDataSource(datasource);
+        factory.setSelectClause(String.join(",", tokens));
+        factory.setFromClause("FROM orders");
+        factory.setSortKey("order_id");
+        return factory.getObject();
     }
 }
