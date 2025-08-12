@@ -39,7 +39,7 @@ public class EmployeeJobConfig {
         return new JobBuilder("employee", jobRepository)
                 .incrementer(new RunIdIncrementer())
                 .start(bauStep)       // you can choose bauStep or rerunStep dynamically in your REST controller
-                .next(rerunStep)      // optional — or remove if you only want one step at a time
+                //.next(rerunStep)      // optional — or remove if you only want one step at a time
                 .build();
     }
 
